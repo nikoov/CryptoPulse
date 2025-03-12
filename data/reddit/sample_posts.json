@@ -2,12 +2,22 @@
   "posts": [
     {
       "id": "sample1",
-      "title": "Bitcoin hits new all-time high! The future is bright! 🚀",
+      "title": "Bitcoin hits new all-time high! The future is bright! \ud83d\ude80",
       "text": "Really excited about the momentum in the crypto market. Bitcoin's fundamentals are stronger than ever.",
       "created_utc": "2024-03-11T22:00:00",
       "score": 150,
       "crypto_id": "bitcoin",
-      "subreddit": "bitcoin"
+      "subreddit": "bitcoin",
+      "sentiment_analysis": {
+        "text": "bitcoin hits new all-time high! the future is bright! \ud83d\ude80 really excited about the momentum in the crypto market. bitcoin's fundamentals are stronger than ever.",
+        "sentiment": "positive",
+        "confidence": 0.9930197596549988,
+        "scores": {
+          "negative": 0.002048259600996971,
+          "neutral": 0.004932014271616936,
+          "positive": 0.9930197596549988
+        }
+      }
     },
     {
       "id": "sample2",
@@ -16,7 +26,17 @@
       "created_utc": "2024-03-11T22:01:00",
       "score": 75,
       "crypto_id": "bitcoin",
-      "subreddit": "bitcoin"
+      "subreddit": "bitcoin",
+      "sentiment_analysis": {
+        "text": "concerned about the recent market volatility the price swings are getting more extreme. this doesn't seem sustainable.",
+        "sentiment": "negative",
+        "confidence": 0.9726409316062927,
+        "scores": {
+          "negative": 0.9726409316062927,
+          "neutral": 0.024839073419570923,
+          "positive": 0.0025200406089425087
+        }
+      }
     },
     {
       "id": "sample3",
@@ -25,7 +45,17 @@
       "created_utc": "2024-03-11T22:02:00",
       "score": 200,
       "crypto_id": "ethereum",
-      "subreddit": "ethereum"
+      "subreddit": "ethereum",
+      "sentiment_analysis": {
+        "text": "ethereum's new update is a game changer the latest protocol improvements are amazing. transaction speeds are much better now.",
+        "sentiment": "positive",
+        "confidence": 0.9926809668540955,
+        "scores": {
+          "negative": 0.00201458134688437,
+          "neutral": 0.005304435733705759,
+          "positive": 0.9926809668540955
+        }
+      }
     },
     {
       "id": "sample4",
@@ -34,7 +64,17 @@
       "created_utc": "2024-03-11T22:03:00",
       "score": 50,
       "crypto_id": "bitcoin",
-      "subreddit": "bitcoin"
+      "subreddit": "bitcoin",
+      "sentiment_analysis": {
+        "text": "lost everything in the crypto crash this market is too volatile. i should have been more careful with my investments.",
+        "sentiment": "negative",
+        "confidence": 0.9676083326339722,
+        "scores": {
+          "negative": 0.9676083326339722,
+          "neutral": 0.02947070263326168,
+          "positive": 0.0029209055937826633
+        }
+      }
     },
     {
       "id": "sample5",
@@ -43,7 +83,17 @@
       "created_utc": "2024-03-11T22:04:00",
       "score": 100,
       "crypto_id": "ethereum",
-      "subreddit": "ethereum"
+      "subreddit": "ethereum",
+      "sentiment_analysis": {
+        "text": "neutral perspective on current market conditions while there's both positive and negative news, the technology continues to develop steadily.",
+        "sentiment": "positive",
+        "confidence": 0.9160822033882141,
+        "scores": {
+          "negative": 0.0019660198595374823,
+          "neutral": 0.08195174485445023,
+          "positive": 0.9160822033882141
+        }
+      }
     }
   ]
-} 
+}

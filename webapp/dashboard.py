@@ -59,13 +59,22 @@ def load_historical_prices(crypto_id):
     latest_file = max(files, key=os.path.getctime)
     return pd.read_csv(latest_file)
 
+def load_sentiment_data():
+    """Load sentiment analysis data."""
+    try:
+        with open('data/reddit/sample_posts.json', 'r') as f:
+            data = json.load(f)
+            return data['posts']
+    except Exception:
+        return None
+
 # Sidebar
 st.sidebar.image("https://img.icons8.com/nolan/64/cryptocurrency.png", width=64)
 st.sidebar.title("CryptoPulse")
 st.sidebar.markdown("---")
 selected_page = st.sidebar.radio(
     "Navigation",
-    ["Market Overview", "Price Analysis", "Historical Trends"]
+    ["Market Overview", "Price Analysis", "Historical Trends", "Sentiment Analysis"]
 )
 
 # Load data
@@ -253,6 +262,71 @@ elif selected_page == "Historical Trends":
         )
         
         st.plotly_chart(fig, use_container_width=True)
+
+# Sentiment Analysis Page
+elif selected_page == "Sentiment Analysis":
+    st.title("🎭 Sentiment Analysis")
+    
+    # Load sentiment data
+    sentiment_data = load_sentiment_data()
+    
+    if sentiment_data is None:
+        st.error("No sentiment data available. Please run the sentiment analyzer first.")
+    else:
+        # Group posts by cryptocurrency
+        crypto_sentiments = {}
+        for post in sentiment_data:
+            crypto_id = post['crypto_id']
+            if crypto_id not in crypto_sentiments:
+                crypto_sentiments[crypto_id] = []
+            crypto_sentiments[crypto_id].append(post)
+        
+        # Cryptocurrency selector
+        selected_crypto = st.selectbox(
+            "Select Cryptocurrency",
+            options=list(crypto_sentiments.keys()),
+            format_func=lambda x: x.title()
+        )
+        
+        if selected_crypto:
+            posts = crypto_sentiments[selected_crypto]
+            
+            # Display sentiment statistics
+            st.subheader("Recent Posts and Sentiments")
+            
+            for post in posts:
+                with st.expander(f"{post['title']}", expanded=True):
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.write("**Content:**")
+                        st.write(post['text'])
+                        st.write(f"**Posted in:** r/{post['subreddit']}")
+                        st.write(f"**Score:** {post['score']}")
+                    
+                    with col2:
+                        if 'sentiment_analysis' in post:
+                            sentiment = post['sentiment_analysis']
+                            sentiment_color = {
+                                'positive': 'green',
+                                'neutral': 'gray',
+                                'negative': 'red'
+                            }.get(sentiment['sentiment'], 'gray')
+                            
+                            st.markdown(f"""
+                                <div style='background-color: {sentiment_color}20; padding: 10px; border-radius: 5px;'>
+                                    <h4 style='color: {sentiment_color}; margin: 0;'>
+                                        {sentiment['sentiment'].title()}
+                                    </h4>
+                                    <p style='margin: 5px 0;'>
+                                        Confidence: {sentiment['confidence']:.2%}
+                                    </p>
+                                </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.info("Sentiment analysis not available")
+                    
+                    st.markdown("---")
 
 # Footer
 st.markdown("---")
