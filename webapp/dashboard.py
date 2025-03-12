@@ -111,17 +111,35 @@ if selected_page == "Market Overview":
     
     price_data = []
     for crypto_id, data in current_prices.items():
+        price = data.get('usd', 0)
+        change = data.get('usd_24h_change', 0)
+        market_cap = data.get('usd_market_cap', 0)
+        volume = data.get('usd_24h_vol', 0)
+        
         price_data.append({
             "Cryptocurrency": crypto_id.title(),
-            "Price (USD)": f"${data.get('usd', 0):,.2f}",
-            "24h Change": f"{data.get('usd_24h_change', 0):.2f}%",
-            "Market Cap": f"${data.get('usd_market_cap', 0):,.0f}",
-            "24h Volume": f"${data.get('usd_24h_vol', 0):,.0f}"
+            "Price (USD)": price,
+            "24h Change": change,
+            "Market Cap": market_cap,
+            "24h Volume": volume
         })
     
     df = pd.DataFrame(price_data)
+    
+    # Create a styled version with formatting
+    styled_df = df.copy()
+    styled_df["Price (USD)"] = styled_df["Price (USD)"].apply(lambda x: f"${x:,.2f}")
+    styled_df["24h Change"] = styled_df["24h Change"].apply(lambda x: f"{x:.2f}%")
+    styled_df["Market Cap"] = styled_df["Market Cap"].apply(lambda x: f"${x:,.0f}")
+    styled_df["24h Volume"] = styled_df["24h Volume"].apply(lambda x: f"${x:,.0f}")
+    
+    # Apply styling with background gradient on the numerical change column
     st.dataframe(
-        df.style.background_gradient(subset=['24h Change'], cmap='RdYlGn'),
+        styled_df.style.background_gradient(
+            subset=["24h Change"],
+            cmap='RdYlGn',
+            gmap=df["24h Change"]
+        ),
         use_container_width=True
     )
 
