@@ -1,13 +1,13 @@
 """
 Reddit data collector for CryptoPulse.
-Collects cryptocurrency-related posts and comments from Reddit.
+Collects posts and comments from cryptocurrency-related subreddits.
 """
 
 import os
 import json
 import logging
-from datetime import datetime
-from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
 
 import praw
 from dotenv import load_dotenv
@@ -27,150 +27,136 @@ class RedditCollector:
         # Load Reddit API credentials
         self.client_id = os.getenv('REDDIT_CLIENT_ID')
         self.client_secret = os.getenv('REDDIT_CLIENT_SECRET')
-        self.user_agent = os.getenv('REDDIT_USER_AGENT')
+        self.user_agent = os.getenv('REDDIT_USER_AGENT', 'CryptoPulse/1.0')
+        self.username = os.getenv('REDDIT_USERNAME')
+        self.password = os.getenv('REDDIT_PASSWORD')
         
-        if not all([self.client_id, self.client_secret, self.user_agent]):
-            raise ValueError("Missing Reddit API credentials in .env file")
+        if not all([self.client_id, self.client_secret]):
+            logger.error("Missing Reddit API credentials in .env file")
+            raise ValueError("Reddit API credentials not found")
         
-        # Initialize Reddit API client
-        self.reddit = praw.Reddit(
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            user_agent=self.user_agent
-        )
+        # Initialize Reddit client
+        self.reddit = self._init_client()
         
-        # Define cryptocurrency-related subreddits
-        self.crypto_subreddits = [
-            'cryptocurrency',
-            'bitcoin',
-            'ethereum',
-            'CryptoMarkets',
-            'CryptoCurrencyTrading'
-        ]
-
-    def collect_posts(self, subreddit: str, limit: int = 100, sort: str = 'hot') -> List[Dict[Any, Any]]:
+        # Subreddits and keywords to track
+        self.crypto_subreddits = {
+            'bitcoin': ['bitcoin', 'btc'],
+            'ethereum': ['ethereum', 'ethtrader', 'ethfinance'],
+            'binancecoin': ['binance'],
+            'ripple': ['ripple', 'XRP'],
+            'cardano': ['cardano', 'ADA'],
+            'dogecoin': ['dogecoin']
+        }
+        
+        self.crypto_keywords = {
+            'bitcoin': ['bitcoin', 'btc'],
+            'ethereum': ['ethereum', 'eth'],
+            'binancecoin': ['bnb', 'binance coin'],
+            'ripple': ['ripple', 'xrp'],
+            'cardano': ['cardano', 'ada'],
+            'dogecoin': ['dogecoin', 'doge']
+        }
+    
+    def _init_client(self) -> praw.Reddit:
+        """Initialize and return the Reddit API client."""
+        try:
+            reddit = praw.Reddit(
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                user_agent=self.user_agent,
+                read_only=True  # Explicitly set read-only mode
+            )
+            logger.info("Reddit API client initialized successfully")
+            return reddit
+        except Exception as e:
+            logger.error(f"Failed to initialize Reddit API client: {str(e)}")
+            raise
+    
+    def collect_subreddit_posts(self, crypto_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         """
-        Collect posts from a subreddit.
+        Collect recent posts from cryptocurrency-specific subreddits.
         
         Args:
-            subreddit: Name of the subreddit
-            limit: Number of posts to collect (default: 100)
-            sort: Sort method ('hot', 'new', 'top', etc.)
+            crypto_id: The cryptocurrency identifier
+            limit: Maximum number of posts to collect per subreddit
             
         Returns:
-            List of collected posts as dictionaries
+            List of collected posts with metadata
         """
+        if crypto_id not in self.crypto_subreddits:
+            logger.error(f"Unknown cryptocurrency: {crypto_id}")
+            return []
+        
         posts = []
-        try:
-            subreddit_instance = self.reddit.subreddit(subreddit)
-            
-            if sort == 'hot':
-                submissions = subreddit_instance.hot(limit=limit)
-            elif sort == 'new':
-                submissions = subreddit_instance.new(limit=limit)
-            elif sort == 'top':
-                submissions = subreddit_instance.top(limit=limit)
-            else:
-                submissions = subreddit_instance.hot(limit=limit)
-            
-            for submission in submissions:
-                post_data = {
-                    'id': submission.id,
-                    'created_utc': datetime.fromtimestamp(submission.created_utc).isoformat(),
-                    'title': submission.title,
-                    'text': submission.selftext,
-                    'score': submission.score,
-                    'upvote_ratio': submission.upvote_ratio,
-                    'num_comments': submission.num_comments,
-                    'url': submission.url,
-                    'subreddit': subreddit,
-                }
-                posts.append(post_data)
+        subreddits = self.crypto_subreddits[crypto_id]
+        
+        for subreddit_name in subreddits:
+            try:
+                subreddit = self.reddit.subreddit(subreddit_name)
                 
-        except Exception as e:
-            logger.error(f"Error collecting posts from r/{subreddit}: {str(e)}")
-            
+                # Collect hot posts
+                for submission in subreddit.hot(limit=limit):
+                    post_data = {
+                        'id': submission.id,
+                        'title': submission.title,
+                        'text': submission.selftext,
+                        'created_utc': datetime.fromtimestamp(submission.created_utc).isoformat(),
+                        'score': submission.score,
+                        'upvote_ratio': submission.upvote_ratio,
+                        'num_comments': submission.num_comments,
+                        'subreddit': subreddit_name,
+                        'crypto_id': crypto_id,
+                        'url': f"https://reddit.com{submission.permalink}"
+                    }
+                    posts.append(post_data)
+                
+                logger.info(f"Collected {len(posts)} posts from r/{subreddit_name}")
+                
+            except Exception as e:
+                logger.error(f"Error collecting posts from r/{subreddit_name}: {str(e)}")
+                continue
+        
         return posts
-
-    def collect_comments(self, post_id: str, limit: int = 100) -> List[Dict[Any, Any]]:
+    
+    def save_posts(self, posts: List[Dict[str, Any]], crypto_id: str) -> None:
         """
-        Collect comments from a specific post.
+        Save collected Reddit posts to a JSON file.
         
         Args:
-            post_id: Reddit post ID
-            limit: Number of comments to collect (default: 100)
-            
-        Returns:
-            List of collected comments as dictionaries
+            posts: List of collected posts
+            crypto_id: Cryptocurrency identifier for filename
         """
-        comments = []
-        try:
-            submission = self.reddit.submission(id=post_id)
-            submission.comments.replace_more(limit=0)  # Flatten comment tree
-            
-            for comment in submission.comments.list()[:limit]:
-                comment_data = {
-                    'id': comment.id,
-                    'created_utc': datetime.fromtimestamp(comment.created_utc).isoformat(),
-                    'text': comment.body,
-                    'score': comment.score,
-                    'author': str(comment.author),
-                    'post_id': post_id,
-                }
-                comments.append(comment_data)
-                
-        except Exception as e:
-            logger.error(f"Error collecting comments from post {post_id}: {str(e)}")
-            
-        return comments
-
-    def save_data(self, data: List[Dict[Any, Any]], data_type: str) -> None:
-        """
-        Save collected data to a JSON file.
+        if not posts:
+            logger.warning(f"No posts to save for {crypto_id}")
+            return
         
-        Args:
-            data: List of post or comment dictionaries
-            data_type: Type of data ('posts' or 'comments')
-        """
-        filename = f'data/reddit_{data_type}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        # Create data directory if it doesn't exist
+        os.makedirs('data/reddit', exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'data/reddit/posts_{crypto_id}_{timestamp}.json'
         
         try:
             with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            logger.info(f"Saved {len(data)} {data_type} to {filename}")
+                json.dump(posts, f, ensure_ascii=False, indent=2)
+            logger.info(f"Saved {len(posts)} posts to {filename}")
             
         except IOError as e:
-            logger.error(f"Error saving {data_type}: {str(e)}")
-
-    def collect_crypto_data(self, posts_per_subreddit: int = 100) -> None:
-        """
-        Collect posts and comments from all cryptocurrency subreddits.
-        
-        Args:
-            posts_per_subreddit: Number of posts to collect per subreddit
-        """
-        all_posts = []
-        all_comments = []
-        
-        for subreddit in self.crypto_subreddits:
-            logger.info(f"Collecting posts from r/{subreddit}")
-            posts = self.collect_posts(subreddit, limit=posts_per_subreddit)
-            all_posts.extend(posts)
-            
-            # Collect comments for each post
-            for post in posts:
-                comments = self.collect_comments(post['id'])
-                all_comments.extend(comments)
-        
-        # Save collected data
-        self.save_data(all_posts, 'posts')
-        self.save_data(all_comments, 'comments')
+            logger.error(f"Error saving posts to {filename}: {str(e)}")
+    
+    def collect_all_posts(self, limit_per_subreddit: int = 100) -> None:
+        """Collect posts for all tracked cryptocurrencies."""
+        for crypto_id in self.crypto_subreddits:
+            logger.info(f"Collecting Reddit posts for {crypto_id}")
+            posts = self.collect_subreddit_posts(crypto_id, limit_per_subreddit)
+            if posts:
+                self.save_posts(posts, crypto_id)
 
 def main():
     """Main function to demonstrate usage."""
     collector = RedditCollector()
-    collector.collect_crypto_data(posts_per_subreddit=100)
+    collector.collect_all_posts()
 
 if __name__ == '__main__':
     main() 

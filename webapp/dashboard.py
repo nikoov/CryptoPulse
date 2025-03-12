@@ -128,6 +128,11 @@ if selected_page == "Market Overview":
     
     # Create a styled version with formatting
     styled_df = df.copy()
+    
+    # Keep numerical values for styling
+    numerical_changes = df["24h Change"].copy()
+    
+    # Format display values
     styled_df["Price (USD)"] = styled_df["Price (USD)"].apply(lambda x: f"${x:,.2f}")
     styled_df["24h Change"] = styled_df["24h Change"].apply(lambda x: f"{x:.2f}%")
     styled_df["Market Cap"] = styled_df["Market Cap"].apply(lambda x: f"${x:,.0f}")
@@ -138,7 +143,7 @@ if selected_page == "Market Overview":
         styled_df.style.background_gradient(
             subset=["24h Change"],
             cmap='RdYlGn',
-            gmap=df["24h Change"]
+            gmap=numerical_changes
         ),
         use_container_width=True
     )
