@@ -76,8 +76,6 @@ class PriceCollector:
             'binancecoin': 'BNB',
             'ripple': 'XRP',
             'cardano': 'Cardano',
-            'solana': 'Solana',
-            'polkadot': 'Polkadot',
             'dogecoin': 'Dogecoin'
         }
         
