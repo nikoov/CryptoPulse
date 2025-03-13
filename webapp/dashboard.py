@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 import json
 import glob
 import os
+from collections import Counter
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Set page configuration
 st.set_page_config(
@@ -281,6 +285,35 @@ elif selected_page == "Sentiment Analysis":
                 crypto_sentiments[crypto_id] = []
             crypto_sentiments[crypto_id].append(post)
         
+        # Overall Sentiment Summary
+        st.subheader("📊 Overall Sentiment Distribution")
+        
+        # Calculate overall sentiment stats
+        all_sentiments = []
+        for posts in crypto_sentiments.values():
+            for post in posts:
+                if 'sentiment_analysis' in post:
+                    all_sentiments.append(post['sentiment_analysis']['sentiment'])
+        
+        if all_sentiments:
+            sentiment_counts = Counter(all_sentiments)
+            
+            # Create pie chart
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=list(sentiment_counts.keys()),
+                values=list(sentiment_counts.values()),
+                hole=.3,
+                marker_colors=['#00ff88', '#888888', '#ff4444']
+            )])
+            
+            fig_pie.update_layout(
+                title="Overall Sentiment Distribution",
+                template="plotly_dark",
+                showlegend=True
+            )
+            
+            st.plotly_chart(fig_pie, use_container_width=True)
+        
         # Cryptocurrency selector
         selected_crypto = st.selectbox(
             "Select Cryptocurrency",
@@ -291,11 +324,99 @@ elif selected_page == "Sentiment Analysis":
         if selected_crypto:
             posts = crypto_sentiments[selected_crypto]
             
-            # Display sentiment statistics
-            st.subheader("Recent Posts and Sentiments")
+            # Sentiment Statistics for Selected Crypto
+            st.subheader(f"📈 {selected_crypto.title()} Sentiment Analysis")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            # Calculate statistics
+            crypto_sentiments_list = [
+                post['sentiment_analysis']['sentiment'] 
+                for post in posts 
+                if 'sentiment_analysis' in post
+            ]
+            
+            if crypto_sentiments_list:
+                sentiment_counts = Counter(crypto_sentiments_list)
+                total_posts = len(crypto_sentiments_list)
+                
+                with col1:
+                    positive_pct = (sentiment_counts.get('positive', 0) / total_posts) * 100
+                    st.metric(
+                        "Positive Sentiment",
+                        f"{positive_pct:.1f}%",
+                        delta=f"{positive_pct - 33.33:.1f}%" if positive_pct > 33.33 else None
+                    )
+                
+                with col2:
+                    neutral_pct = (sentiment_counts.get('neutral', 0) / total_posts) * 100
+                    st.metric(
+                        "Neutral Sentiment",
+                        f"{neutral_pct:.1f}%",
+                        delta=None
+                    )
+                
+                with col3:
+                    negative_pct = (sentiment_counts.get('negative', 0) / total_posts) * 100
+                    st.metric(
+                        "Negative Sentiment",
+                        f"{negative_pct:.1f}%",
+                        delta=f"{33.33 - negative_pct:.1f}%" if negative_pct < 33.33 else None
+                    )
+            
+            # Word Clouds
+            st.subheader("🔤 Word Frequency Analysis")
+            
+            # Separate texts by sentiment
+            positive_texts = " ".join([
+                post['text'] for post in posts 
+                if 'sentiment_analysis' in post and post['sentiment_analysis']['sentiment'] == 'positive'
+            ])
+            
+            negative_texts = " ".join([
+                post['text'] for post in posts 
+                if 'sentiment_analysis' in post and post['sentiment_analysis']['sentiment'] == 'negative'
+            ])
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Positive Sentiment Words**")
+                if positive_texts:
+                    wordcloud = WordCloud(
+                        width=800, height=400,
+                        background_color='#0e1117',
+                        colormap='YlGn'
+                    ).generate(positive_texts)
+                    
+                    plt.figure(figsize=(10, 5))
+                    plt.imshow(wordcloud, interpolation='bilinear')
+                    plt.axis('off')
+                    st.pyplot(plt)
+                else:
+                    st.info("No positive sentiment texts available")
+            
+            with col2:
+                st.write("**Negative Sentiment Words**")
+                if negative_texts:
+                    wordcloud = WordCloud(
+                        width=800, height=400,
+                        background_color='#0e1117',
+                        colormap='RdGy'
+                    ).generate(negative_texts)
+                    
+                    plt.figure(figsize=(10, 5))
+                    plt.imshow(wordcloud, interpolation='bilinear')
+                    plt.axis('off')
+                    st.pyplot(plt)
+                else:
+                    st.info("No negative sentiment texts available")
+            
+            # Recent Posts with Sentiment
+            st.subheader("📝 Recent Posts and Sentiments")
             
             for post in posts:
-                with st.expander(f"{post['title']}", expanded=True):
+                with st.expander(f"{post['title']}", expanded=False):
                     col1, col2 = st.columns([3, 1])
                     
                     with col1:
